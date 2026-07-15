@@ -4,6 +4,9 @@
 
 #include <stdlib.h>
 #include <inttypes.h>
+#include <sys/select.h>
+#include <errno.h>
+#include <string.h>
 
 #include <X11/Xlib.h>
 
@@ -17,6 +20,8 @@ struct QuirePlatform
     QuirePixelFormat pixelFormat;
     XImage *image;
 };
+
+// ============ LIFECYCLE HELPERS ============
 
 static bool OpenDisplay(QuirePlatform *restrict platform, char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
 {
@@ -171,6 +176,8 @@ static bool QueryPixelFormat(
     return true;
 }
 
+// ============ LIFECYCLE ============
+
 bool QuirePlatformCreate(
     QuirePlatform **restrict platform,
     u32 width,
@@ -185,30 +192,22 @@ bool QuirePlatformCreate(
     }
 
     if (!OpenDisplay(*platform, errorBuffer))
-    {
-        QuirePlatformDestroy(platform);
-        return false;
-    }
+        goto failure;
 
     if (!CreateWindow(*platform, width, height, errorBuffer))
-    {
-        QuirePlatformDestroy(platform);
-        return false;
-    }
+        goto failure;
 
     if (!SetupWindow(*platform, errorBuffer))
-    {
-        QuirePlatformDestroy(platform);
-        return false;
-    }
+        goto failure;
 
     if (!QueryPixelFormat(*platform, errorBuffer))
-    {
-        QuirePlatformDestroy(platform);
-        return false;
-    }
+        goto failure;
 
     return true;
+
+failure:
+    QuirePlatformDestroy(platform);
+    return false;
 }
 
 void QuirePlatformDestroy(QuirePlatform **restrict platform)
@@ -224,4 +223,22 @@ void QuirePlatformDestroy(QuirePlatform **restrict platform)
 
     free(*platform);
     *platform = NULL;
+}
+
+// ============ EVENTS ============
+
+void QuirePlatformWaitForEvent(QuirePlatform *platform, u32 timeoutMilliseconds)
+{
+    int fd = ConnectionNumber(platform->display);
+
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(fd, &fds);
+
+    struct timeval tv;
+    tv.tv_sec = timeoutMilliseconds / 1000;
+    tv.tv_usec = (timeoutMilliseconds % 1000) * 1000;
+
+    if (select(fd + 1, &fds, NULL, NULL, &tv) == -1)
+        LOG_DEBUG("select() failed (errno=%d): %s", errno, strerror(errno));
 }

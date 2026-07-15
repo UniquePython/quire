@@ -30,7 +30,7 @@ typedef struct
     u32 bytesPerPixel;
 } QuirePixelFormat;
 
-// ============ EVENT ============
+// ============ EVENTS ============
 
 typedef enum
 {
@@ -39,7 +39,7 @@ typedef enum
     QUIRE_PLATFORM_ERROR
 } QuirePlatformResult;
 
-void QuirePlatformWaitForEvent(QuirePlatform *platform, u32 timeout);
+void QuirePlatformWaitForEvent(QuirePlatform *platform, u32 timeoutMilliseconds);
 
 QuirePlatformResult QuirePlatformPollEvent(
     QuirePlatform *restrict platform,
