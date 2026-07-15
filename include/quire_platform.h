@@ -40,6 +40,8 @@ typedef enum
     QUIRE_PLATFORM_ERROR
 } QuirePlatformResult;
 
+bool QuirePlatformWaitForEvent(QuirePlatform *platform, u32 timeout);
+
 QuirePlatformResult QuirePlatformPollEvent(
     QuirePlatform *restrict platform,
     QuireEvent *restrict event,
