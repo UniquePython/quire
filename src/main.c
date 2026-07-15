@@ -1,99 +1,187 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-// ======== CONFIGURATION CONSTANTS ========
+#define WIDTH 400
+#define HEIGHT 200
 
-#define PIXEL_SIZE 32
+#define PIXEL_SIZE 64
 
-// ======== ENTRY POINT ========
+void blit_glyph(
+    uint8_t *target,
+    int target_w,
+    int target_h,
+    FT_Bitmap *glyph_bitmap,
+    int pen_x,
+    int pen_y,
+    int bitmap_left,
+    int bitmap_top,
+    uint8_t fg_r,
+    uint8_t fg_g,
+    uint8_t fg_b,
+    uint8_t bg_r,
+    uint8_t bg_g,
+    uint8_t bg_b)
+{
+    for (int y = 0; y < glyph_bitmap->rows; y++)
+    {
+        for (int x = 0; x < glyph_bitmap->width; x++)
+        {
+            unsigned char coverage =
+                glyph_bitmap->buffer[y * glyph_bitmap->pitch + x];
+
+            /*
+             * FreeType's origin is the baseline.
+             *
+             * bitmap_top is the distance above the baseline,
+             * so we subtract it.
+             */
+            int target_x = pen_x + bitmap_left + x;
+            int target_y = pen_y - bitmap_top + y;
+
+            if (target_x < 0 ||
+                target_x >= target_w ||
+                target_y < 0 ||
+                target_y >= target_h)
+            {
+                continue;
+            }
+
+            uint8_t *pixel =
+                target + (target_y * target_w + target_x) * 3;
+
+            pixel[0] =
+                (fg_r * coverage + bg_r * (255 - coverage)) / 255;
+
+            pixel[1] =
+                (fg_g * coverage + bg_g * (255 - coverage)) / 255;
+
+            pixel[2] =
+                (fg_b * coverage + bg_b * (255 - coverage)) / 255;
+        }
+    }
+}
+
+void write_ppm(
+    const char *filename,
+    uint8_t *buffer,
+    int width,
+    int height)
+{
+    FILE *file = fopen(filename, "wb");
+
+    if (!file)
+    {
+        perror("fopen");
+        return;
+    }
+
+    fprintf(file,
+            "P6\n%d %d\n255\n",
+            width,
+            height);
+
+    fwrite(
+        buffer,
+        1,
+        width * height * 3,
+        file);
+
+    fclose(file);
+}
 
 int main(void)
 {
-    FT_Library library;
+    uint8_t *buffer = malloc(WIDTH * HEIGHT * 3);
 
-    FT_Error error = FT_Init_FreeType(&library);
-    if (error)
+    if (!buffer)
     {
-        fprintf(stderr, "[ERROR] Failed to initialize FreeType.\n");
+        fprintf(stderr, "malloc failed\n");
         return EXIT_FAILURE;
     }
 
-    printf("[LOG] FreeType initialized.\n");
+    /*
+     * Fill framebuffer with dark background.
+     */
+    for (int i = 0; i < WIDTH * HEIGHT; i++)
+    {
+        buffer[i * 3 + 0] = 20;
+        buffer[i * 3 + 1] = 20;
+        buffer[i * 3 + 2] = 30;
+    }
+
+    FT_Library library;
+
+    if (FT_Init_FreeType(&library))
+    {
+        fprintf(stderr, "FreeType init failed\n");
+        free(buffer);
+        return EXIT_FAILURE;
+    }
 
     FT_Face face;
 
-    const char *font = "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf";
+    const char *font =
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf";
 
-    error = FT_New_Face(
-        library,
-        font,
+    if (FT_New_Face(library, font, 0, &face))
+    {
+        fprintf(stderr, "Font load failed\n");
+        FT_Done_FreeType(library);
+        free(buffer);
+        return EXIT_FAILURE;
+    }
+
+    FT_Set_Pixel_Sizes(
+        face,
         0,
-        &face);
+        PIXEL_SIZE);
 
-    if (error)
-    {
-        fprintf(stderr, "[ERROR] Couldn't load font: %s\n", font);
-        FT_Done_FreeType(library);
-        return EXIT_FAILURE;
-    }
-
-    printf("[LOG] Loaded: %s\n", face->family_name);
-    printf("[LOG] Style : %s\n", face->style_name);
-
-    error = FT_Set_Pixel_Sizes(face, 0, PIXEL_SIZE);
-
-    if (error)
-    {
-        fprintf(stderr, "[ERROR] Couldn't set pixel size.\n");
-        FT_Done_Face(face);
-        FT_Done_FreeType(library);
-        return EXIT_FAILURE;
-    }
-
-    error = FT_Load_Char(face, 'A', FT_LOAD_RENDER);
-
-    if (error)
-    {
-        fprintf(stderr, "[ERROR] Couldn't load glyph.\n");
-        FT_Done_Face(face);
-        FT_Done_FreeType(library);
-        return EXIT_FAILURE;
-    }
+    FT_Load_Char(
+        face,
+        'A',
+        FT_LOAD_RENDER);
 
     FT_GlyphSlot glyph = face->glyph;
 
-    printf("[LOG] Bitmap width : %d\n", glyph->bitmap.width);
-    printf("[LOG] Bitmap rows  : %d\n", glyph->bitmap.rows);
+    /*
+     * Draw at baseline position:
+     *
+     * x = 100
+     * y = 100
+     */
+    blit_glyph(
+        buffer,
+        WIDTH,
+        HEIGHT,
+        &glyph->bitmap,
 
-    printf("[LOG] Bearing X    : %d\n", glyph->bitmap_left);
-    printf("[LOG] Bearing Y    : %d\n", glyph->bitmap_top);
+        100,
+        100,
 
-    printf("[LOG] Advance X    : %ld\n", glyph->advance.x);
-    printf("[LOG] Advance Y    : %ld\n", glyph->advance.y);
+        glyph->bitmap_left,
+        glyph->bitmap_top,
 
-    printf("[LOG] Advance (px) = %ld\n", glyph->advance.x >> 6);
-    printf("[LOG] Advance (py) = %ld\n", glyph->advance.y >> 6);
+        255, 255, 255, // foreground
+        20, 20, 30     // background
+    );
 
-    FT_Bitmap *bmp = &glyph->bitmap;
-
-    for (unsigned int y = 0; y < bmp->rows; y++)
-    {
-        for (unsigned int x = 0; x < bmp->width; x++)
-        {
-            unsigned char p =
-                bmp->buffer[(int)y * bmp->pitch + (int)x];
-
-            putchar(p > 128 ? '#' : ' ');
-        }
-
-        putchar('\n');
-    }
+    write_ppm(
+        "glyph.ppm",
+        buffer,
+        WIDTH,
+        HEIGHT);
 
     FT_Done_Face(face);
     FT_Done_FreeType(library);
+
+    free(buffer);
+
+    printf("Wrote glyph.ppm\n");
 
     return EXIT_SUCCESS;
 }
