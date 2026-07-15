@@ -15,7 +15,7 @@ bool QuirePlatformCreate(
     u32 width, u32 height,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE]);
 
-void QuirePlatformDestroy(QuirePlatform *platform);
+void QuirePlatformDestroy(QuirePlatform **restrict platform);
 
 typedef struct
 {
