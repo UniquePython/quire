@@ -1,5 +1,7 @@
 #include "quire_log.h"
 
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <unistd.h>

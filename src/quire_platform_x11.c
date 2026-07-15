@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 
 struct QuirePlatform
 {
@@ -248,22 +249,71 @@ QuirePlatformResult QuirePlatformPollEvent(
     QuireEvent *restrict event,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
 {
-    if (XPending(platform->display) == 0)
-        return QUIRE_PLATFORM_NO_EVENT;
+    (void)errorBuffer;
 
-    XEvent xevent;
-    XNextEvent(platform->display, &xevent);
-
-    switch (xevent.type)
+    while (XPending(platform->display) > 0)
     {
-    case ClientMessage:
-        if ((Atom)xevent.xclient.data.l[0] == platform->WMDelete)
-            event->type = QUIRE_EVENT_CLOSE;
-        break;
+        XEvent xevent;
+        XNextEvent(platform->display, &xevent);
 
-    default:
-        return QUIRE_PLATFORM_NO_EVENT;
+        switch (xevent.type)
+        {
+        case ClientMessage:
+            if ((Atom)xevent.xclient.data.l[0] == platform->WMDelete)
+            {
+                event->type = QUIRE_EVENT_CLOSE;
+                return QUIRE_PLATFORM_OK;
+            }
+            break;
+
+        case Expose:
+            if (xevent.xexpose.count != 0)
+                break;
+
+            event->type = QUIRE_EVENT_REDRAW;
+            return QUIRE_PLATFORM_OK;
+
+        case ConfigureNotify:
+            if (((u32)xevent.xconfigure.height != platform->height) || ((u32)xevent.xconfigure.width != platform->width))
+            {
+                platform->height = (u32)xevent.xconfigure.height;
+                platform->width = (u32)xevent.xconfigure.width;
+
+                event->type = QUIRE_EVENT_RESIZE;
+                event->as.resize.height = platform->height;
+                event->as.resize.width = platform->width;
+
+                return QUIRE_PLATFORM_OK;
+            }
+            break;
+
+        case KeyPress:
+        {
+            char buffer[8] = {0};
+            KeySym keysym;
+            int count = XLookupString(&xevent.xkey, buffer, sizeof(buffer), &keysym, NULL);
+
+            bool hasCommandModifier = (xevent.xkey.state & ControlMask) != 0;
+
+            if (!hasCommandModifier && count > 0)
+            {
+                // plain typing: emit TEXT
+                event->type = QUIRE_EVENT_TEXT;
+                event->as.text.length = (usize)count;
+                memcpy(event->as.text.text, buffer, (usize)count);
+                return QUIRE_PLATFORM_OK;
+            }
+
+            // either a command modifier was held, or XLookupString gave us
+            // no text (arrows, Escape, Backspace, etc.) — emit KEY
+            event->type = QUIRE_EVENT_KEY;
+            event->as.key.key = (u32)keysym;
+            event->as.key.pressed = true;
+            event->as.key.modifiers = (u32)xevent.xkey.state;
+            return QUIRE_PLATFORM_OK;
+        }
+        }
     }
 
-    return QUIRE_PLATFORM_OK;
+    return QUIRE_PLATFORM_NO_EVENT;
 }
