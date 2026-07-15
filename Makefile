@@ -23,14 +23,14 @@ all: $(TARGET)
 
 $(TARGET): $(OBJ)
 	@mkdir -p $(dir $@)
-	$(CC) $(LDFLAGS) $(OBJ) -o $@ $(LDLIBS)
+	@$(CC) $(LDFLAGS) $(OBJ) -o $@ $(LDLIBS)
 
 build/%.o: src/%.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	@$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 run: all
-	./$(TARGET)
+	@./$(TARGET)
 
 clean:
-	rm -rf build bin/quire
+	@rm -rf build bin/quire
