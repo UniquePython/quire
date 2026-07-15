@@ -317,3 +317,20 @@ QuirePlatformResult QuirePlatformPollEvent(
 
     return QUIRE_PLATFORM_NO_EVENT;
 }
+
+// ============ RENDERING ============
+
+QuirePixelFormat QuirePlatformGetPixelFormat(const QuirePlatform *platform)
+{
+    return platform->pixelFormat;
+}
+
+u32 QuirePlatformGetWidth(const QuirePlatform *platform)
+{
+    return platform->width;
+}
+
+u32 QuirePlatformGetHeight(const QuirePlatform *platform)
+{
+    return platform->height;
+}
