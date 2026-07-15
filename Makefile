@@ -9,8 +9,12 @@ CFLAGS := -std=c23 -g -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conv
 
 LDFLAGS += $(SANITIZERS)
 CPPFLAGS := $(addprefix -I,$(shell find include -type d))
+
 CPPFLAGS += $(shell pkg-config --cflags x11)
 LDLIBS += $(shell pkg-config --libs x11)
+
+CPPFLAGS += $(shell pkg-config --cflags freetype2)
+LDLIBS += $(shell pkg-config --libs freetype2)
 
 TARGET := bin/quire
 

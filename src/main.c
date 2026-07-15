@@ -1,107 +1,99 @@
-#include <X11/Xlib.h>
-#include <X11/keysym.h>
+#include <ft2build.h>
+#include FT_FREETYPE_H
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 
 // ======== CONFIGURATION CONSTANTS ========
 
-// WINDOW CONFIG
-
-#define WINDOW_X_POS 0
-#define WINDOW_Y_POS 0
-
-#define WINDOW_WIDTH 900
-#define WINDOW_HEIGHT 600
-
-#define WINDOW_BORDER_WIDTH 1
-
-#define WINDOW_BORDER_COLOR BlackPixel
-#define WINDOW_BG_COLOR WhitePixel
-
-// EVENT CONFIG
-
-#define EVENT_TYPES (KeyPressMask | ExposureMask | StructureNotifyMask)
+#define PIXEL_SIZE 32
 
 // ======== ENTRY POINT ========
 
 int main(void)
 {
-    Display *display = XOpenDisplay(NULL);
-    if (display == NULL)
+    FT_Library library;
+
+    FT_Error error = FT_Init_FreeType(&library);
+    if (error)
     {
-        fprintf(stderr, "[ERROR] Unable to open X display.\n");
-        fflush(stderr);
+        fprintf(stderr, "[ERROR] Failed to initialize FreeType.\n");
         return EXIT_FAILURE;
     }
 
-    int screen = DefaultScreen(display);
-    Window rootWindow = RootWindow(display, screen);
+    printf("[LOG] FreeType initialized.\n");
 
-    Window window = XCreateSimpleWindow(
-        display, rootWindow,
-        WINDOW_X_POS, WINDOW_Y_POS,
-        WINDOW_WIDTH, WINDOW_HEIGHT,
-        WINDOW_BORDER_WIDTH,
-        WINDOW_BORDER_COLOR(display, screen),
-        WINDOW_BG_COLOR(display, screen));
+    FT_Face face;
 
-    XSelectInput(display, window, EVENT_TYPES);
+    const char *font = "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf";
 
-    XMapWindow(display, window);
+    error = FT_New_Face(
+        library,
+        font,
+        0,
+        &face);
 
-    Atom WMDelete = XInternAtom(display, "WM_DELETE_WINDOW", false);
-    XSetWMProtocols(display, window, &WMDelete, 1);
-
-    XEvent event;
-    bool running = true;
-    while (running)
+    if (error)
     {
-        XNextEvent(display, &event);
-
-        switch (event.type)
-        {
-        case KeyPress:
-        {
-            KeySym key = XLookupKeysym(&event.xkey, 0);
-
-            switch (key)
-            {
-            case XK_Escape:
-                printf("[LOG] Escape Key pressed.\n");
-                running = false;
-                printf("[LOG] Closing...\n");
-                fflush(stdout);
-                break;
-
-            case XK_Left:
-                printf("[LOG] Left Key pressed.\n");
-                fflush(stdout);
-                break;
-
-            case XK_Right:
-                printf("[LOG] Right Key pressed.\n");
-                fflush(stdout);
-                break;
-            }
-            break;
-        }
-
-        case Expose:
-            printf("[LOG] Expose event fired.\n");
-            fflush(stdout);
-            break;
-
-        case ClientMessage:
-            if ((Atom)event.xclient.data.l[0] == WMDelete)
-                running = false;
-            break;
-        }
+        fprintf(stderr, "[ERROR] Couldn't load font: %s\n", font);
+        FT_Done_FreeType(library);
+        return EXIT_FAILURE;
     }
 
-    XDestroyWindow(display, window);
-    XCloseDisplay(display);
+    printf("[LOG] Loaded: %s\n", face->family_name);
+    printf("[LOG] Style : %s\n", face->style_name);
+
+    error = FT_Set_Pixel_Sizes(face, 0, PIXEL_SIZE);
+
+    if (error)
+    {
+        fprintf(stderr, "[ERROR] Couldn't set pixel size.\n");
+        FT_Done_Face(face);
+        FT_Done_FreeType(library);
+        return EXIT_FAILURE;
+    }
+
+    error = FT_Load_Char(face, 'A', FT_LOAD_RENDER);
+
+    if (error)
+    {
+        fprintf(stderr, "[ERROR] Couldn't load glyph.\n");
+        FT_Done_Face(face);
+        FT_Done_FreeType(library);
+        return EXIT_FAILURE;
+    }
+
+    FT_GlyphSlot glyph = face->glyph;
+
+    printf("[LOG] Bitmap width : %d\n", glyph->bitmap.width);
+    printf("[LOG] Bitmap rows  : %d\n", glyph->bitmap.rows);
+
+    printf("[LOG] Bearing X    : %d\n", glyph->bitmap_left);
+    printf("[LOG] Bearing Y    : %d\n", glyph->bitmap_top);
+
+    printf("[LOG] Advance X    : %ld\n", glyph->advance.x);
+    printf("[LOG] Advance Y    : %ld\n", glyph->advance.y);
+
+    printf("[LOG] Advance (px) = %ld\n", glyph->advance.x >> 6);
+    printf("[LOG] Advance (py) = %ld\n", glyph->advance.y >> 6);
+
+    FT_Bitmap *bmp = &glyph->bitmap;
+
+    for (unsigned int y = 0; y < bmp->rows; y++)
+    {
+        for (unsigned int x = 0; x < bmp->width; x++)
+        {
+            unsigned char p =
+                bmp->buffer[(int)y * bmp->pitch + (int)x];
+
+            putchar(p > 128 ? '#' : ' ');
+        }
+
+        putchar('\n');
+    }
+
+    FT_Done_Face(face);
+    FT_Done_FreeType(library);
 
     return EXIT_SUCCESS;
 }
