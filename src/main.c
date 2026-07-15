@@ -63,6 +63,7 @@ int main(void)
         switch (event.type)
         {
         case KeyPress:
+        {
             KeySym key = XLookupKeysym(&event.xkey, 0);
 
             switch (key)
@@ -85,6 +86,7 @@ int main(void)
                 break;
             }
             break;
+        }
 
         case Expose:
             printf("[LOG] Expose event fired.\n");
