@@ -68,6 +68,9 @@ static bool CreateWindow(
     }
     LOG_DEBUG("Created window (%" PRIu32 "x%" PRIu32 ")", width, height);
 
+    platform->width = width;
+    platform->height = height;
+
     return true;
 }
 
