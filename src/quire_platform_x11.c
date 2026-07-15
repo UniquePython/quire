@@ -242,3 +242,28 @@ void QuirePlatformWaitForEvent(QuirePlatform *platform, u32 timeoutMilliseconds)
     if (select(fd + 1, &fds, NULL, NULL, &tv) == -1)
         LOG_DEBUG("select() failed (errno=%d): %s", errno, strerror(errno));
 }
+
+QuirePlatformResult QuirePlatformPollEvent(
+    QuirePlatform *restrict platform,
+    QuireEvent *restrict event,
+    char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
+{
+    if (XPending(platform->display) == 0)
+        return QUIRE_PLATFORM_NO_EVENT;
+
+    XEvent xevent;
+    XNextEvent(platform->display, &xevent);
+
+    switch (xevent.type)
+    {
+    case ClientMessage:
+        if ((Atom)xevent.xclient.data.l[0] == platform->WMDelete)
+            event->type = QUIRE_EVENT_CLOSE;
+        break;
+
+    default:
+        return QUIRE_PLATFORM_NO_EVENT;
+    }
+
+    return QUIRE_PLATFORM_OK;
+}
