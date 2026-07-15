@@ -18,6 +18,27 @@ struct QuirePlatform
     XImage *image;
 };
 
+static void DeriveShiftAndBits(unsigned long mask, u8 *restrict shift, u8 *restrict bits)
+{
+    *shift = 0;
+    *bits = 0;
+
+    if (mask == 0)
+        return;
+
+    while ((mask & 1UL) == 0)
+    {
+        ++(*shift);
+        mask >>= 1;
+    }
+
+    while ((mask & 1UL) != 0)
+    {
+        ++(*bits);
+        mask >>= 1;
+    }
+}
+
 bool QuirePlatformCreate(
     QuirePlatform **restrict platform,
     u32 width,
@@ -82,6 +103,59 @@ bool QuirePlatformCreate(
         return false;
     }
     LOG_DEBUG("Registered WM_DELETE_WINDOW protocol");
+
+    Visual *visual = DefaultVisual((*platform)->display, (*platform)->screen);
+    DeriveShiftAndBits(visual->red_mask, &(*platform)->pixelFormat.redShift, &(*platform)->pixelFormat.redBits);
+    DeriveShiftAndBits(visual->green_mask, &(*platform)->pixelFormat.greenShift, &(*platform)->pixelFormat.greenBits);
+    DeriveShiftAndBits(visual->blue_mask, &(*platform)->pixelFormat.blueShift, &(*platform)->pixelFormat.blueBits);
+    LOG_DEBUG(
+        "Pixel masks: R=0x%08lX G=0x%08lX B=0x%08lX", visual->red_mask, visual->green_mask, visual->blue_mask);
+
+    i32 formatCount = 0;
+    XPixmapFormatValues *formats = XListPixmapFormats((*platform)->display, &formatCount);
+    if (formats == NULL)
+    {
+        QuirePlatformDestroy(platform);
+        QuireSetError(errorBuffer, "Failed to query pixmap formats");
+        return false;
+    }
+
+    i32 depth = DefaultDepth((*platform)->display, (*platform)->screen);
+    bool found = false;
+    for (i32 i = 0; i < formatCount; ++i)
+    {
+        if (formats[i].depth == depth)
+        {
+            (*platform)->pixelFormat.bytesPerPixel = (u32)((formats[i].bits_per_pixel + 7) / 8);
+            found = true;
+            break;
+        }
+    }
+    XFree(formats);
+
+    if (!found)
+    {
+        QuirePlatformDestroy(platform);
+        QuireSetError(errorBuffer, "No pixmap format found for depth %d", depth);
+        return false;
+    }
+    LOG_DEBUG(
+        "Pixel format: "
+        "R%" PRIu8 "@%" PRIu8
+        " G%" PRIu8 "@%" PRIu8
+        " B%" PRIu8 "@%" PRIu8
+        ", %" PRIu32 " bytes/pixel",
+
+        (*platform)->pixelFormat.redBits,
+        (*platform)->pixelFormat.redShift,
+
+        (*platform)->pixelFormat.greenBits,
+        (*platform)->pixelFormat.greenShift,
+
+        (*platform)->pixelFormat.blueBits,
+        (*platform)->pixelFormat.blueShift,
+
+        (*platform)->pixelFormat.bytesPerPixel);
 
     return true;
 }

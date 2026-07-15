@@ -28,7 +28,6 @@ typedef struct
     u8 blueShift;
 
     u32 bytesPerPixel;
-    u32 stride;
 } QuirePixelFormat;
 
 // ============ EVENT ============
