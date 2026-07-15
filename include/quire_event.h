@@ -32,14 +32,14 @@ typedef struct
         } text;
         struct
         {
-            u32 x, y;
+            i32 x, y;
             u32 button;
             bool pressed;
             u32 modifiers;
         } mouseButton;
         struct
         {
-            u32 x, y;
+            i32 x, y;
             u32 modifiers;
         } mouseMove;
         struct
