@@ -22,6 +22,128 @@ struct QuirePlatform
     XImage *image;
 };
 
+// ============ KEY / MODIFIER TRANSLATION ============
+
+// Translates an X11 KeySym into a platform-agnostic QuireKey.
+//
+// Printable keysyms below 0x80 line up with ASCII/Latin-1 already, so they
+// pass through unchanged (matching QuireKey's convention of reusing ASCII
+// codes for printable keys). Named/non-printable keysyms are mapped
+// individually since X11's keysym values don't correspond to QuireKey's.
+static QuireKey TranslateKeySym(KeySym keysym)
+{
+    if (keysym >= 0x20 && keysym <= 0x7E)
+        return (QuireKey)keysym;
+
+    switch (keysym)
+    {
+    case XK_Escape:
+        return QUIRE_KEY_ESCAPE;
+    case XK_Return:
+    case XK_KP_Enter:
+        return QUIRE_KEY_ENTER;
+    case XK_Tab:
+        return QUIRE_KEY_TAB;
+    case XK_BackSpace:
+        return QUIRE_KEY_BACKSPACE;
+    case XK_Insert:
+        return QUIRE_KEY_INSERT;
+    case XK_Delete:
+        return QUIRE_KEY_DELETE;
+
+    case XK_Left:
+        return QUIRE_KEY_LEFT;
+    case XK_Right:
+        return QUIRE_KEY_RIGHT;
+    case XK_Up:
+        return QUIRE_KEY_UP;
+    case XK_Down:
+        return QUIRE_KEY_DOWN;
+
+    case XK_Home:
+        return QUIRE_KEY_HOME;
+    case XK_End:
+        return QUIRE_KEY_END;
+    case XK_Page_Up:
+        return QUIRE_KEY_PAGE_UP;
+    case XK_Page_Down:
+        return QUIRE_KEY_PAGE_DOWN;
+
+    case XK_Caps_Lock:
+        return QUIRE_KEY_CAPS_LOCK;
+    case XK_Num_Lock:
+        return QUIRE_KEY_NUM_LOCK;
+
+    case XK_Shift_L:
+        return QUIRE_KEY_SHIFT_LEFT;
+    case XK_Shift_R:
+        return QUIRE_KEY_SHIFT_RIGHT;
+    case XK_Control_L:
+        return QUIRE_KEY_CONTROL_LEFT;
+    case XK_Control_R:
+        return QUIRE_KEY_CONTROL_RIGHT;
+    case XK_Alt_L:
+        return QUIRE_KEY_ALT_LEFT;
+    case XK_Alt_R:
+        return QUIRE_KEY_ALT_RIGHT;
+    case XK_Super_L:
+        return QUIRE_KEY_SUPER_LEFT;
+    case XK_Super_R:
+        return QUIRE_KEY_SUPER_RIGHT;
+
+    case XK_F1:
+        return QUIRE_KEY_F1;
+    case XK_F2:
+        return QUIRE_KEY_F2;
+    case XK_F3:
+        return QUIRE_KEY_F3;
+    case XK_F4:
+        return QUIRE_KEY_F4;
+    case XK_F5:
+        return QUIRE_KEY_F5;
+    case XK_F6:
+        return QUIRE_KEY_F6;
+    case XK_F7:
+        return QUIRE_KEY_F7;
+    case XK_F8:
+        return QUIRE_KEY_F8;
+    case XK_F9:
+        return QUIRE_KEY_F9;
+    case XK_F10:
+        return QUIRE_KEY_F10;
+    case XK_F11:
+        return QUIRE_KEY_F11;
+    case XK_F12:
+        return QUIRE_KEY_F12;
+
+    default:
+        return QUIRE_KEY_UNKNOWN;
+    }
+}
+
+// Translates X11's XKeyEvent.state modifier bitmask into a platform-agnostic
+// QuireModifier bitmask. Mod1 and Mod4 are Alt and Super by the near-universal
+// convention on Linux/X11 window managers; Mod2 is conventionally NumLock.
+static QuireModifier TranslateModifiers(unsigned int state)
+{
+    u32 modifiers = QUIRE_MOD_NONE;
+
+    if ((state & ShiftMask) != 0)
+        modifiers |= (u32)QUIRE_MOD_SHIFT;
+    if ((state & ControlMask) != 0)
+        modifiers |= (u32)QUIRE_MOD_CONTROL;
+    if ((state & Mod1Mask) != 0)
+        modifiers |= (u32)QUIRE_MOD_ALT;
+    if ((state & Mod4Mask) != 0)
+        modifiers |= (u32)QUIRE_MOD_SUPER;
+    if ((state & LockMask) != 0)
+        modifiers |= (u32)QUIRE_MOD_CAPS_LOCK;
+    if ((state & Mod2Mask) != 0)
+        modifiers |= (u32)QUIRE_MOD_NUM_LOCK;
+
+    return (QuireModifier)modifiers;
+}
+
 // ============ LIFECYCLE HELPERS ============
 
 static bool OpenDisplay(QuirePlatform *restrict platform, char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
@@ -310,9 +432,9 @@ QuirePlatformResult QuirePlatformPollEvent(
             // either a command modifier was held, or XLookupString gave us
             // no text (arrows, Escape, Backspace, etc.) — emit KEY
             event->type = QUIRE_EVENT_KEY;
-            event->as.key.key = (u32)keysym;
+            event->as.key.key = TranslateKeySym(keysym);
             event->as.key.pressed = true;
-            event->as.key.modifiers = (u32)xevent.xkey.state;
+            event->as.key.modifiers = TranslateModifiers(xevent.xkey.state);
             return QUIRE_PLATFORM_OK;
         }
         }

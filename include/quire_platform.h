@@ -46,6 +46,11 @@ QuirePlatformResult QuirePlatformPollEvent(
     QuireEvent *restrict event,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE]);
 
+// Returns a static, human-readable name for a QuireKey (e.g. "F1", "Escape",
+// "A"), primarily intended for logging/debugging. Never returns NULL; unknown
+// or unmapped values yield "Unknown".
+const char *QuireKeyName(QuireKey key);
+
 // ============ RENDERING ============
 
 QuirePixelFormat QuirePlatformGetPixelFormat(const QuirePlatform *platform);
