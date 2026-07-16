@@ -570,7 +570,7 @@ QuirePlatformResult QuirePlatformPollEvent(
 
         case KeyPress:
         {
-            char buffer[8] = {0};
+            char buffer[sizeof(event->as.text.text)] = {0};
             KeySym keysym;
             int count = XLookupString(&xevent.xkey, buffer, sizeof(buffer), &keysym, NULL);
 
