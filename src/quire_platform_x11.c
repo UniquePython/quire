@@ -139,7 +139,7 @@ static QUIRE_CONST QuireKey TranslateKeySym(KeySym keysym)
 // window managers, remapped keyboards (e.g. xmodmap/setxkbmap swaps), and
 // even some non-PC keyboards, so each is inspected via its bound keysyms
 // rather than assumed.
-static QUIRE_PURE QuireModifier ClassifyModifierSlot(Display *display, const XModifierKeymap *modmap, int slotIndex)
+static QUIRE_PURE QuireModifier ClassifyModifierSlot(Display *display, const XModifierKeymap *modmap, i32 slotIndex)
 {
     switch (slotIndex)
     {
@@ -157,7 +157,7 @@ static QUIRE_PURE QuireModifier ClassifyModifierSlot(Display *display, const XMo
     // and classify by the keysyms attached to it. A single modifier bit can
     // have multiple keycodes bound (e.g. both Alt_L and Alt_R), so any match
     // among them is sufficient.
-    for (int keySlot = 0; keySlot < modmap->max_keypermod; ++keySlot)
+    for (i32 keySlot = 0; keySlot < modmap->max_keypermod; ++keySlot)
     {
         KeyCode keycode = modmap->modifiermap[(usize)slotIndex * (usize)modmap->max_keypermod + (usize)keySlot];
         if (keycode == 0)
@@ -166,12 +166,12 @@ static QUIRE_PURE QuireModifier ClassifyModifierSlot(Display *display, const XMo
         // XKeycodeToKeysym is deprecated in favor of XGetKeyboardMapping;
         // fetch this single keycode's row of keysyms (shifted levels, etc.)
         // and check all of them rather than just level 0.
-        int keysymsPerKeycode = 0;
+        i32 keysymsPerKeycode = 0;
         KeySym *keysyms = XGetKeyboardMapping(display, keycode, 1, &keysymsPerKeycode);
         if (keysyms == NULL)
             continue;
 
-        for (int level = 0; level < keysymsPerKeycode; ++level)
+        for (i32 level = 0; level < keysymsPerKeycode; ++level)
         {
             switch (keysyms[level])
             {
@@ -230,7 +230,7 @@ static QUIRE_CONST const char *ModifierSemanticName(QuireModifier modifier)
 // Alt/Super/NumLock to a different Mod slot at runtime.
 static void RebuildModifierMap(QuirePlatform *restrict platform)
 {
-    for (int i = 0; i < 8; ++i)
+    for (i32 i = 0; i < 8; ++i)
         platform->modifierMap.semantic[i] = QUIRE_MOD_NONE;
 
     XModifierKeymap *modmap = XGetModifierMapping(platform->display);
@@ -240,7 +240,7 @@ static void RebuildModifierMap(QuirePlatform *restrict platform)
         return;
     }
 
-    for (int slot = 0; slot < 8; ++slot)
+    for (i32 slot = 0; slot < 8; ++slot)
         platform->modifierMap.semantic[slot] = ClassifyModifierSlot(platform->display, modmap, slot);
 
     XFreeModifiermap(modmap);
@@ -257,9 +257,9 @@ static void RebuildModifierMap(QuirePlatform *restrict platform)
 // Translates X11's XKeyEvent.state modifier bitmask into a platform-agnostic
 // QuireModifier bitmask, using the platform's cached modifier map rather
 // than assuming which of Mod1..Mod5 correspond to Alt/Super/NumLock.
-static QUIRE_PURE QuireModifier TranslateModifiers(const QuirePlatform *platform, unsigned int state)
+static QUIRE_PURE QuireModifier TranslateModifiers(const QuirePlatform *platform, u32 state)
 {
-    static const unsigned int slotMasks[8] = {
+    static const u32 slotMasks[8] = {
         ShiftMask,
         LockMask,
         ControlMask,
@@ -272,7 +272,7 @@ static QUIRE_PURE QuireModifier TranslateModifiers(const QuirePlatform *platform
 
     u32 modifiers = QUIRE_MOD_NONE;
 
-    for (int slot = 0; slot < 8; ++slot)
+    for (i32 slot = 0; slot < 8; ++slot)
     {
         if ((state & slotMasks[slot]) == 0)
             continue;
@@ -450,6 +450,13 @@ bool QuirePlatformCreate(
     u32 height,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
 {
+
+    if (width == 0 || height == 0)
+    {
+        QuireSetError(errorBuffer, "Window dimensions must be greater than zero");
+        return false;
+    }
+
     *platform = calloc(1, sizeof(**platform));
     if (*platform == NULL)
     {
@@ -471,6 +478,8 @@ bool QuirePlatformCreate(
     if (!QueryPixelFormat(*platform, errorBuffer))
         goto failure;
 
+    LOG_INFO("Quire ready");
+
     return true;
 
 failure:
@@ -484,20 +493,28 @@ void QuirePlatformDestroy(QuirePlatform **restrict platform)
         return;
 
     if ((*platform)->window != 0)
+    {
         XDestroyWindow((*platform)->display, (*platform)->window);
+        LOG_DEBUG("Destroyed window");
+    }
 
     if ((*platform)->display != NULL)
+    {
         XCloseDisplay((*platform)->display);
+        LOG_DEBUG("Closed display");
+    }
 
     free(*platform);
     *platform = NULL;
+
+    LOG_INFO("Shutdown successful");
 }
 
 // ============ EVENTS ============
 
 void QuirePlatformWaitForEvent(QuirePlatform *platform, u32 timeoutMilliseconds)
 {
-    int fd = ConnectionNumber(platform->display);
+    i32 fd = ConnectionNumber(platform->display);
 
     fd_set fds;
     FD_ZERO(&fds);
@@ -529,6 +546,7 @@ QuirePlatformResult QuirePlatformPollEvent(
             if ((Atom)xevent.xclient.data.l[0] == platform->WMDelete)
             {
                 event->type = QUIRE_EVENT_CLOSE;
+                LOG_DEBUG("Close event recorded");
                 return QUIRE_PLATFORM_OK;
             }
             break;
@@ -538,6 +556,7 @@ QuirePlatformResult QuirePlatformPollEvent(
                 break;
 
             event->type = QUIRE_EVENT_REDRAW;
+            LOG_DEBUG("Redraw event recorded");
             return QUIRE_PLATFORM_OK;
 
         case ConfigureNotify:
@@ -549,6 +568,8 @@ QuirePlatformResult QuirePlatformPollEvent(
                 event->type = QUIRE_EVENT_RESIZE;
                 event->as.resize.height = platform->height;
                 event->as.resize.width = platform->width;
+
+                LOG_DEBUG("Resize event recorded. New dimensions %" PRIu32 "x%" PRIu32, platform->width, platform->height);
 
                 return QUIRE_PLATFORM_OK;
             }
@@ -563,8 +584,10 @@ QuirePlatformResult QuirePlatformPollEvent(
             // to keep working correctly.
             if (xevent.xmapping.request == MappingModifier || xevent.xmapping.request == MappingKeyboard)
             {
+                LOG_DEBUG("Keyboard mapping refresh requested");
                 XRefreshKeyboardMapping(&xevent.xmapping);
                 RebuildModifierMap(platform);
+                LOG_INFO("Keyboard mapping updated");
             }
             break;
 
@@ -572,7 +595,7 @@ QuirePlatformResult QuirePlatformPollEvent(
         {
             char buffer[sizeof(event->as.text.text)] = {0};
             KeySym keysym;
-            int count = XLookupString(&xevent.xkey, buffer, sizeof(buffer), &keysym, NULL);
+            i32 count = XLookupString(&xevent.xkey, buffer, sizeof(buffer), &keysym, NULL);
 
             QuireModifier modifiers = TranslateModifiers(platform, xevent.xkey.state);
 

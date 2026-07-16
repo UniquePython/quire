@@ -1,6 +1,6 @@
-#include "quire_log.h"
-
 #define _POSIX_C_SOURCE 200809L
+
+#include "quire_log.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -37,7 +37,7 @@ static void QuireLogWrite(
     const char *restrict level,
     const char *restrict color,
     const char *restrict file,
-    int line,
+    i32 line,
     const char *restrict func,
     const char *restrict fmt,
     va_list args)
@@ -63,7 +63,7 @@ static void QuireLogWrite(
         fflush(stream);
 }
 
-void QuireLogError(const char *file, int line, const char *func, const char *fmt, ...)
+void QuireLogError(const char *file, i32 line, const char *func, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
@@ -79,7 +79,7 @@ void QuireLogInfo(const char *fmt, ...)
     va_end(args);
 }
 
-void QuireLogDebug(const char *file, int line, const char *func, const char *fmt, ...)
+void QuireLogDebug(const char *file, i32 line, const char *func, const char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);

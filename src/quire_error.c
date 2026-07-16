@@ -3,7 +3,10 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-void QuireSetError(char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE], const char *restrict fmt, ...)
+void QuireSetError(
+    char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE],
+    const char *restrict fmt,
+    ...)
 {
     if (errorBuffer == NULL || fmt == NULL)
         return;
