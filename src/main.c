@@ -94,7 +94,7 @@ void write_ppm(
     fclose(file);
 }
 
-int main(void)
+int testmain(void)
 {
     uint8_t *buffer = malloc(WIDTH * HEIGHT * 3);
 

@@ -8,8 +8,8 @@
 void QuireLogInit(void);
 
 #if VERBOSITY >= 1
-void QuireLogError(const char *fmt, ...);
-#define LOG_ERROR(...) QuireLogError(__VA_ARGS__)
+void QuireLogError(const char *file, int line, const char *func, const char *fmt, ...);
+#define LOG_ERROR(...) QuireLogError(__FILE__, __LINE__, __func__, __VA_ARGS__)
 #else
 #define LOG_ERROR(...) ((void)0)
 #endif
@@ -22,8 +22,8 @@ void QuireLogInfo(const char *fmt, ...);
 #endif
 
 #if VERBOSITY >= 3
-void QuireLogDebug(const char *fmt, ...);
-#define LOG_DEBUG(...) QuireLogDebug(__VA_ARGS__)
+void QuireLogDebug(const char *file, int line, const char *func, const char *fmt, ...);
+#define LOG_DEBUG(...) QuireLogDebug(__FILE__, __LINE__, __func__, __VA_ARGS__)
 #else
 #define LOG_DEBUG(...) ((void)0)
 #endif
