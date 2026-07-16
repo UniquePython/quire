@@ -3,6 +3,7 @@
 
 #include "quire_types.h"
 #include "quire_error.h"
+#include "quire_attributes.h"
 
 #include "quire_event.h"
 
@@ -10,7 +11,7 @@ typedef struct QuirePlatform QuirePlatform;
 
 // ============ LIFECYCLE ============
 
-bool QuirePlatformCreate(
+QUIRE_WARN_UNUSED_RESULT bool QuirePlatformCreate(
     QuirePlatform **restrict platform,
     u32 width, u32 height,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE]);
@@ -41,7 +42,7 @@ typedef enum
 
 void QuirePlatformWaitForEvent(QuirePlatform *platform, u32 timeoutMilliseconds);
 
-QuirePlatformResult QuirePlatformPollEvent(
+QUIRE_WARN_UNUSED_RESULT QuirePlatformResult QuirePlatformPollEvent(
     QuirePlatform *restrict platform,
     QuireEvent *restrict event,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE]);
@@ -49,17 +50,17 @@ QuirePlatformResult QuirePlatformPollEvent(
 // Returns a static, human-readable name for a QuireKey (e.g. "F1", "Escape",
 // "A"), primarily intended for logging/debugging. Never returns NULL; unknown
 // or unmapped values yield "Unknown".
-const char *QuireKeyName(QuireKey key);
+QUIRE_CONST const char *QuireKeyName(QuireKey key);
 
 // ============ RENDERING ============
 
-QuirePixelFormat QuirePlatformGetPixelFormat(const QuirePlatform *platform);
+QUIRE_PURE QuirePixelFormat QuirePlatformGetPixelFormat(const QuirePlatform *platform);
 
-u32 QuirePlatformGetWidth(const QuirePlatform *platform);
+QUIRE_PURE u32 QuirePlatformGetWidth(const QuirePlatform *platform);
 
-u32 QuirePlatformGetHeight(const QuirePlatform *platform);
+QUIRE_PURE u32 QuirePlatformGetHeight(const QuirePlatform *platform);
 
-bool QuirePlatformPresent(
+QUIRE_WARN_UNUSED_RESULT bool QuirePlatformPresent(
     QuirePlatform *restrict platform,
     const u8 *restrict pixels,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE]);

@@ -41,7 +41,7 @@ struct QuirePlatform
 // pass through unchanged (matching QuireKey's convention of reusing ASCII
 // codes for printable keys). Named/non-printable keysyms are mapped
 // individually since X11's keysym values don't correspond to QuireKey's.
-static QuireKey TranslateKeySym(KeySym keysym)
+static QUIRE_CONST QuireKey TranslateKeySym(KeySym keysym)
 {
     if (keysym >= 0x20 && keysym <= 0x7E)
         return (QuireKey)keysym;
@@ -139,7 +139,7 @@ static QuireKey TranslateKeySym(KeySym keysym)
 // window managers, remapped keyboards (e.g. xmodmap/setxkbmap swaps), and
 // even some non-PC keyboards, so each is inspected via its bound keysyms
 // rather than assumed.
-static QuireModifier ClassifyModifierSlot(Display *display, const XModifierKeymap *modmap, int slotIndex)
+static QUIRE_PURE QuireModifier ClassifyModifierSlot(Display *display, const XModifierKeymap *modmap, int slotIndex)
 {
     switch (slotIndex)
     {
@@ -206,7 +206,7 @@ static QuireModifier ClassifyModifierSlot(Display *display, const XModifierKeyma
 // Human-readable name for a single QuireModifier flag, for debug logging of
 // the resolved modifier map. Only meant for the flags ClassifyModifierSlot
 // can return for a Mod1..Mod5 slot.
-static const char *ModifierSemanticName(QuireModifier modifier)
+static QUIRE_CONST const char *ModifierSemanticName(QuireModifier modifier)
 {
     switch (modifier)
     {
@@ -257,7 +257,7 @@ static void RebuildModifierMap(QuirePlatform *restrict platform)
 // Translates X11's XKeyEvent.state modifier bitmask into a platform-agnostic
 // QuireModifier bitmask, using the platform's cached modifier map rather
 // than assuming which of Mod1..Mod5 correspond to Alt/Super/NumLock.
-static QuireModifier TranslateModifiers(const QuirePlatform *platform, unsigned int state)
+static QUIRE_PURE QuireModifier TranslateModifiers(const QuirePlatform *platform, unsigned int state)
 {
     static const unsigned int slotMasks[8] = {
         ShiftMask,
@@ -285,7 +285,7 @@ static QuireModifier TranslateModifiers(const QuirePlatform *platform, unsigned 
 
 // ============ LIFECYCLE HELPERS ============
 
-static bool OpenDisplay(QuirePlatform *restrict platform, char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
+static QUIRE_WARN_UNUSED_RESULT bool OpenDisplay(QuirePlatform *restrict platform, char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
 {
     platform->display = XOpenDisplay(NULL);
     if (platform->display == NULL)
@@ -302,7 +302,7 @@ static bool OpenDisplay(QuirePlatform *restrict platform, char errorBuffer[restr
     return true;
 }
 
-static bool CreateWindow(
+static QUIRE_WARN_UNUSED_RESULT bool CreateWindow(
     QuirePlatform *restrict platform,
     u32 width,
     u32 height,
@@ -335,7 +335,7 @@ static bool CreateWindow(
     return true;
 }
 
-static bool SetupWindow(
+static QUIRE_WARN_UNUSED_RESULT bool SetupWindow(
     QuirePlatform *restrict platform,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
 {
@@ -381,7 +381,7 @@ static void DeriveShiftAndBits(unsigned long mask, u8 *restrict shift, u8 *restr
     }
 }
 
-static bool QueryPixelFormat(
+static QUIRE_WARN_UNUSED_RESULT bool QueryPixelFormat(
     QuirePlatform *restrict platform,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
 {
