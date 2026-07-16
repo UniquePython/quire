@@ -339,7 +339,8 @@ static bool SetupWindow(
     QuirePlatform *restrict platform,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
 {
-    static const long EVENT_TYPES = KeyPressMask | ExposureMask | StructureNotifyMask;
+    static const long EVENT_TYPES = KeyPressMask | ExposureMask | StructureNotifyMask |
+                                    ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
 
     XSelectInput(platform->display, platform->window, EVENT_TYPES);
     LOG_DEBUG("Selected input events: KeyPress, Expose, StructureNotify");

@@ -9,6 +9,7 @@ typedef enum
     QUIRE_EVENT_TEXT,
     QUIRE_EVENT_MOUSE_BUTTON,
     QUIRE_EVENT_MOUSE_MOVE,
+    QUIRE_EVENT_SCROLL,
     QUIRE_EVENT_RESIZE,
     QUIRE_EVENT_REDRAW,
     QUIRE_EVENT_CLOSE,
@@ -76,6 +77,14 @@ typedef enum
     QUIRE_KEY_F12,
 } QuireKey;
 
+typedef enum
+{
+    QUIRE_MOUSE_BUTTON_UNKNOWN = 0,
+    QUIRE_MOUSE_BUTTON_LEFT,
+    QUIRE_MOUSE_BUTTON_MIDDLE,
+    QUIRE_MOUSE_BUTTON_RIGHT,
+} QuireMouseButton;
+
 // Platform-agnostic modifier flags, combined with bitwise OR.
 // Platform backends translate their native modifier state into this set.
 typedef enum
@@ -108,7 +117,7 @@ typedef struct
         struct
         {
             i32 x, y;
-            u32 button;
+            QuireMouseButton button;
             bool pressed;
             QuireModifier modifiers;
         } mouseButton;
@@ -117,6 +126,12 @@ typedef struct
             i32 x, y;
             QuireModifier modifiers;
         } mouseMove;
+        struct
+        {
+            i32 x, y;
+            i32 deltaX, deltaY;
+            QuireModifier modifiers;
+        } scroll;
         struct
         {
             u32 width, height;
