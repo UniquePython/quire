@@ -770,7 +770,6 @@ QuirePlatformResult QuirePlatformPollEvent(
         {
             XEvent motion = xevent;
             XEvent peek;
-            u8 nEvents = 0;
 
             while (XPending(platform->display) > 0)
             {
@@ -780,8 +779,6 @@ QuirePlatformResult QuirePlatformPollEvent(
                     break;
 
                 XNextEvent(platform->display, &motion);
-
-                nEvents++;
             }
 
             event->type = QUIRE_EVENT_MOUSE_MOVE;
@@ -790,15 +787,12 @@ QuirePlatformResult QuirePlatformPollEvent(
             event->as.mouseMove.y = (i32)motion.xmotion.y;
             event->as.mouseMove.modifiers = TranslateModifiers(platform, motion.xmotion.state);
 
-            LOG_DEBUG("Mouse movement event recorded");
-            LOG_DEBUG("%" PRIu8 " mouse movement events suppressed", nEvents);
-
             return QUIRE_PLATFORM_OK;
         }
         }
-
-        return QUIRE_PLATFORM_NO_EVENT;
     }
+
+    return QUIRE_PLATFORM_NO_EVENT;
 }
 
 // ============ RENDERING ============
