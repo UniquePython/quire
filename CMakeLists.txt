@@ -81,5 +81,5 @@ target_compile_options(quire PRIVATE
 )
 
 target_compile_definitions(quire PRIVATE
-    $<$<CONFIG:Release>:VERBOSITY=2>
+    $<$<CONFIG:Release>:VERBOSITY=3>
 )

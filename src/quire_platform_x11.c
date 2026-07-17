@@ -252,6 +252,12 @@ static void RebuildModifierMap(QuirePlatform *restrict platform)
     const char *mod5 = ModifierSemanticName(platform->modifierMap.semantic[Mod5MapIndex]);
 
     LOG_DEBUG("Modifier map: Mod1=%s Mod2=%s Mod3=%s Mod4=%s Mod5=%s", mod1, mod2, mod3, mod4, mod5);
+
+    (void)mod1;
+    (void)mod2;
+    (void)mod3;
+    (void)mod4;
+    (void)mod5;
 }
 
 // Translates X11's XKeyEvent.state modifier bitmask into a platform-agnostic
