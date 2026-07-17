@@ -245,13 +245,13 @@ static void RebuildModifierMap(QuirePlatform *restrict platform)
 
     XFreeModifiermap(modmap);
 
-    LOG_DEBUG(
-        "Modifier map: Mod1=%s Mod2=%s Mod3=%s Mod4=%s Mod5=%s",
-        ModifierSemanticName(platform->modifierMap.semantic[Mod1MapIndex]),
-        ModifierSemanticName(platform->modifierMap.semantic[Mod2MapIndex]),
-        ModifierSemanticName(platform->modifierMap.semantic[Mod3MapIndex]),
-        ModifierSemanticName(platform->modifierMap.semantic[Mod4MapIndex]),
-        ModifierSemanticName(platform->modifierMap.semantic[Mod5MapIndex]));
+    const char *mod1 = ModifierSemanticName(platform->modifierMap.semantic[Mod1MapIndex]);
+    const char *mod2 = ModifierSemanticName(platform->modifierMap.semantic[Mod2MapIndex]);
+    const char *mod3 = ModifierSemanticName(platform->modifierMap.semantic[Mod3MapIndex]);
+    const char *mod4 = ModifierSemanticName(platform->modifierMap.semantic[Mod4MapIndex]);
+    const char *mod5 = ModifierSemanticName(platform->modifierMap.semantic[Mod5MapIndex]);
+
+    LOG_DEBUG("Modifier map: Mod1=%s Mod2=%s Mod3=%s Mod4=%s Mod5=%s", mod1, mod2, mod3, mod4, mod5);
 }
 
 // Translates X11's XKeyEvent.state modifier bitmask into a platform-agnostic
@@ -343,7 +343,7 @@ static QUIRE_WARN_UNUSED_RESULT bool SetupWindow(
                                     ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
 
     XSelectInput(platform->display, platform->window, EVENT_TYPES);
-    LOG_DEBUG("Selected input events: KeyPress, Expose, StructureNotify");
+    LOG_DEBUG("Selected input events: KeyPress, Expose, StructureNotify, ButtonPress, ButtonRelease, PointerMotion");
 
     XMapWindow(platform->display, platform->window);
     LOG_DEBUG("Mapped window");
@@ -510,6 +510,65 @@ void QuirePlatformDestroy(QuirePlatform **restrict platform)
     LOG_INFO("Shutdown successful");
 }
 
+// ============ MOUSE TRANSLATION ============
+
+// Backend-private: classifies which "kind" of thing an X11 button number
+// represents. Not part of the platform-agnostic API — X11-specific button
+// numbering (1-3 = real buttons, 4-7 = wheel-as-buttons convention) is an
+// X11 implementation detail.
+typedef enum
+{
+    QUIRE_X11_BUTTON_NONE,
+    QUIRE_X11_BUTTON_REAL,
+    QUIRE_X11_BUTTON_SCROLL,
+} QuireX11ButtonKind;
+
+static QUIRE_CONST QuireX11ButtonKind ClassifyXButton(u32 xButton)
+{
+    if (1 <= xButton && xButton <= 3)
+        return QUIRE_X11_BUTTON_REAL;
+    else if (4 <= xButton && xButton <= 7)
+        return QUIRE_X11_BUTTON_SCROLL;
+    else
+        return QUIRE_X11_BUTTON_NONE;
+}
+
+// Assumes xButton is already known to be a real button (1-3).
+static QUIRE_CONST QuireMouseButton TranslateMouseButton(u32 xButton)
+{
+    switch (xButton)
+    {
+    case 1:
+        return QUIRE_MOUSE_BUTTON_LEFT;
+
+    case 2:
+        return QUIRE_MOUSE_BUTTON_MIDDLE;
+
+    case 3:
+        return QUIRE_MOUSE_BUTTON_RIGHT;
+
+    default:
+        return QUIRE_MOUSE_BUTTON_UNKNOWN;
+    }
+}
+
+// Assumes xButton is already known to be a scroll button (4-7). Fills in
+// the signed delta for whichever axis this wheel button represents.
+static void ScrollDeltaForButton(u32 xButton, i32 *restrict deltaX, i32 *restrict deltaY)
+{
+    *deltaX = 0;
+    *deltaY = 0;
+
+    if (xButton == 4)
+        *deltaY = 1;
+    else if (xButton == 5)
+        *deltaY = -1;
+    else if (xButton == 6)
+        *deltaX = 1;
+    else if (xButton == 7)
+        *deltaX = -1;
+}
+
 // ============ EVENTS ============
 
 void QuirePlatformWaitForEvent(QuirePlatform *platform, u32 timeoutMilliseconds)
@@ -525,7 +584,7 @@ void QuirePlatformWaitForEvent(QuirePlatform *platform, u32 timeoutMilliseconds)
     tv.tv_usec = (timeoutMilliseconds % 1000) * 1000;
 
     if (select(fd + 1, &fds, NULL, NULL, &tv) == -1)
-        LOG_DEBUG("select() failed (errno=%d): %s", errno, strerror(errno));
+        LOG_WARN("select() failed (errno=%d): %s", errno, strerror(errno));
 }
 
 QuirePlatformResult QuirePlatformPollEvent(
@@ -626,10 +685,120 @@ QuirePlatformResult QuirePlatformPollEvent(
             event->as.key.modifiers = modifiers;
             return QUIRE_PLATFORM_OK;
         }
-        }
-    }
 
-    return QUIRE_PLATFORM_NO_EVENT;
+        case ButtonPress:
+        {
+            u32 xButton = (u32)xevent.xbutton.button;
+            QuireX11ButtonKind xButtonKind = ClassifyXButton(xButton);
+
+            switch (xButtonKind)
+            {
+            case QUIRE_X11_BUTTON_REAL:
+            {
+                QuireMouseButton mouseButton = TranslateMouseButton(xButton);
+
+                event->type = QUIRE_EVENT_MOUSE_BUTTON;
+
+                event->as.mouseButton.x = (i32)xevent.xbutton.x;
+                event->as.mouseButton.y = (i32)xevent.xbutton.y;
+                event->as.mouseButton.button = mouseButton;
+                event->as.mouseButton.pressed = true;
+                event->as.mouseButton.modifiers = TranslateModifiers(platform, xevent.xbutton.state);
+
+                return QUIRE_PLATFORM_OK;
+            }
+
+            case QUIRE_X11_BUTTON_SCROLL:
+            {
+                i32 deltaX, deltaY;
+                ScrollDeltaForButton(xButton, &deltaX, &deltaY);
+
+                event->type = QUIRE_EVENT_SCROLL;
+
+                event->as.scroll.x = (i32)xevent.xbutton.x;
+                event->as.scroll.y = (i32)xevent.xbutton.y;
+                event->as.scroll.deltaX = deltaX;
+                event->as.scroll.deltaY = deltaY;
+                event->as.scroll.modifiers = TranslateModifiers(platform, xevent.xbutton.state);
+
+                return QUIRE_PLATFORM_OK;
+            }
+
+            case QUIRE_X11_BUTTON_NONE:
+                LOG_WARN("Unknown mouse button %" PRIu32 " clicked", xButton);
+                break;
+            }
+
+            break;
+        }
+
+        case ButtonRelease:
+        {
+            u32 xButton = (u32)xevent.xbutton.button;
+            QuireX11ButtonKind xButtonKind = ClassifyXButton(xButton);
+
+            switch (xButtonKind)
+            {
+            case QUIRE_X11_BUTTON_REAL:
+            {
+                QuireMouseButton mouseButton = TranslateMouseButton(xButton);
+
+                event->type = QUIRE_EVENT_MOUSE_BUTTON;
+
+                event->as.mouseButton.x = (i32)xevent.xbutton.x;
+                event->as.mouseButton.y = (i32)xevent.xbutton.y;
+                event->as.mouseButton.button = mouseButton;
+                event->as.mouseButton.pressed = false;
+                event->as.mouseButton.modifiers = TranslateModifiers(platform, xevent.xbutton.state);
+
+                return QUIRE_PLATFORM_OK;
+            }
+
+            case QUIRE_X11_BUTTON_SCROLL:
+                LOG_WARN("Unexpected scroll button %" PRIu32 " release ignored", xButton);
+                break;
+
+            case QUIRE_X11_BUTTON_NONE:
+                LOG_WARN("Unknown mouse button %" PRIu32 " released", xButton);
+                break;
+            }
+
+            break;
+        }
+
+        case MotionNotify:
+        {
+            XEvent motion = xevent;
+            XEvent peek;
+            u8 nEvents = 0;
+
+            while (XPending(platform->display) > 0)
+            {
+                XPeekEvent(platform->display, &peek);
+
+                if (peek.type != MotionNotify)
+                    break;
+
+                XNextEvent(platform->display, &motion);
+
+                nEvents++;
+            }
+
+            event->type = QUIRE_EVENT_MOUSE_MOVE;
+
+            event->as.mouseMove.x = (i32)motion.xmotion.x;
+            event->as.mouseMove.y = (i32)motion.xmotion.y;
+            event->as.mouseMove.modifiers = TranslateModifiers(platform, motion.xmotion.state);
+
+            LOG_DEBUG("Mouse movement event recorded");
+            LOG_DEBUG("%" PRIu8 " mouse movement events suppressed", nEvents);
+
+            return QUIRE_PLATFORM_OK;
+        }
+        }
+
+        return QUIRE_PLATFORM_NO_EVENT;
+    }
 }
 
 // ============ RENDERING ============

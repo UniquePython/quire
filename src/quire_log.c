@@ -14,6 +14,7 @@ static bool gUseColorStderr = false;
 #define QUIRE_COLOR_BOLD "\033[1m"
 
 #define QUIRE_COLOR_RED "\033[31m"
+#define QUIRE_COLOR_MAGENTA "\033[35m"
 #define QUIRE_COLOR_YELLOW "\033[33m"
 #define QUIRE_COLOR_CYAN "\033[36m"
 #define QUIRE_COLOR_GRAY "\033[90m"
@@ -63,6 +64,7 @@ static void QuireLogWrite(
         fflush(stream);
 }
 
+#if VERBOSITY >= 1
 void QuireLogError(const char *file, i32 line, const char *func, const char *fmt, ...)
 {
     va_list args;
@@ -70,7 +72,19 @@ void QuireLogError(const char *file, i32 line, const char *func, const char *fmt
     QuireLogWrite(stderr, gUseColorStderr, true, "ERROR", QUIRE_COLOR_RED, file, line, func, fmt, args);
     va_end(args);
 }
+#endif
 
+#if VERBOSITY >= 2
+void QuireLogWarning(const char *fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    QuireLogWrite(stdout, gUseColorStdout, false, "WARNING", QUIRE_COLOR_MAGENTA, NULL, 0, NULL, fmt, args);
+    va_end(args);
+}
+#endif
+
+#if VERBOSITY >= 3
 void QuireLogInfo(const char *fmt, ...)
 {
     va_list args;
@@ -78,7 +92,9 @@ void QuireLogInfo(const char *fmt, ...)
     QuireLogWrite(stdout, gUseColorStdout, false, "INFO", QUIRE_COLOR_YELLOW, NULL, 0, NULL, fmt, args);
     va_end(args);
 }
+#endif
 
+#if VERBOSITY >= 4
 void QuireLogDebug(const char *file, i32 line, const char *func, const char *fmt, ...)
 {
     va_list args;
@@ -86,3 +102,4 @@ void QuireLogDebug(const char *file, i32 line, const char *func, const char *fmt
     QuireLogWrite(stdout, gUseColorStdout, false, "DEBUG", QUIRE_COLOR_CYAN, file, line, func, fmt, args);
     va_end(args);
 }
+#endif

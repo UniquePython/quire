@@ -13,7 +13,7 @@ int main(void)
 
     QuirePlatform *platform = NULL;
 
-    if (!QuirePlatformCreate(&platform, 1280, 0, errbuf))
+    if (!QuirePlatformCreate(&platform, 900, 600, errbuf))
     {
         LOG_ERROR("Failed to create platform: %s", errbuf);
         return EXIT_FAILURE;
