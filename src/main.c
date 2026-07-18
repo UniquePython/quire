@@ -28,7 +28,7 @@ int main(void)
         QuireEvent event;
         QuirePlatformResult result;
 
-        while ((result = QuirePlatformPollEvent(platform, &event, errbuf)) == QUIRE_PLATFORM_OK)
+        while ((result = QuirePlatformPollEvent(platform, &event)) == QUIRE_PLATFORM_OK)
         {
             switch (event.type)
             {
@@ -39,12 +39,6 @@ int main(void)
             default:
                 break;
             }
-        }
-
-        if (result == QUIRE_PLATFORM_ERROR)
-        {
-            LOG_ERROR("Platform error: %s", errbuf);
-            running = false;
         }
     }
 

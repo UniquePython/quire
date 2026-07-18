@@ -593,13 +593,8 @@ void QuirePlatformWaitForEvent(QuirePlatform *platform, u32 timeoutMilliseconds)
         LOG_WARN("select() failed (errno=%d): %s", errno, strerror(errno));
 }
 
-QuirePlatformResult QuirePlatformPollEvent(
-    QuirePlatform *restrict platform,
-    QuireEvent *restrict event,
-    char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
+QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, QuireEvent *restrict event)
 {
-    (void)errorBuffer;
-
     while (XPending(platform->display) > 0)
     {
         XEvent xevent;

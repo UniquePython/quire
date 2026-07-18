@@ -37,15 +37,13 @@ typedef enum
 {
     QUIRE_PLATFORM_OK,
     QUIRE_PLATFORM_NO_EVENT,
-    QUIRE_PLATFORM_ERROR
 } QuirePlatformResult;
 
 void QuirePlatformWaitForEvent(QuirePlatform *platform, u32 timeoutMilliseconds);
 
 QUIRE_WARN_UNUSED_RESULT QuirePlatformResult QuirePlatformPollEvent(
     QuirePlatform *restrict platform,
-    QuireEvent *restrict event,
-    char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE]);
+    QuireEvent *restrict event);
 
 // Returns a static, human-readable name for a QuireKey (e.g. "F1", "Escape",
 // "A"), primarily intended for logging/debugging. Never returns NULL; unknown
