@@ -606,7 +606,7 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
             if ((Atom)xevent.xclient.data.l[0] == platform->WMDelete)
             {
                 event->type = QUIRE_EVENT_CLOSE;
-                LOG_DEBUG("Close event recorded");
+                LOG_INFO("Close event recorded");
                 return QUIRE_PLATFORM_OK;
             }
             break;
@@ -616,7 +616,13 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
                 break;
 
             event->type = QUIRE_EVENT_REDRAW;
-            LOG_DEBUG("Redraw event recorded");
+
+            LOG_DEBUG("Redraw event recorded. Exposed region x=%d, y=%d, width=%d, height=%d",
+                      xevent.xexpose.x,
+                      xevent.xexpose.y,
+                      xevent.xexpose.width,
+                      xevent.xexpose.height);
+
             return QUIRE_PLATFORM_OK;
 
         case ConfigureNotify:
@@ -669,7 +675,21 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
                 (QuireModifier)(QUIRE_MOD_CONTROL | QUIRE_MOD_ALT | QUIRE_MOD_SUPER);
             bool hasCommandModifier = (modifiers & COMMAND_MODIFIERS) != 0;
 
-            if (!hasCommandModifier && count > 0)
+            // XLookupString maps several control keys to their classic ASCII
+            // control-character codes for historical/terminal compatibility
+            // (Escape -> 0x1B, Backspace -> 0x08, Tab -> 0x09, Enter -> 0x0D),
+            // so count > 0 alone is NOT sufficient to mean "this is typed text" —
+            // these always need to surface as KEY events, never TEXT, even when
+            // pressed with no modifiers held.
+            bool isControlKey =
+                keysym == XK_Escape ||
+                keysym == XK_BackSpace ||
+                keysym == XK_Tab ||
+                keysym == XK_Return ||
+                keysym == XK_KP_Enter ||
+                keysym == XK_Delete;
+
+            if (!hasCommandModifier && !isControlKey && count > 0)
             {
                 // plain typing: emit TEXT
                 event->type = QUIRE_EVENT_TEXT;
@@ -678,8 +698,9 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
                 return QUIRE_PLATFORM_OK;
             }
 
-            // either a command modifier was held, or XLookupString gave us
-            // no text (arrows, Escape, Backspace, etc.) — emit KEY
+            // either a command modifier was held, this was one of the known
+            // control keys above, or XLookupString gave us no text at all
+            // (arrows, function keys, etc.) — emit KEY
             event->type = QUIRE_EVENT_KEY;
             event->as.key.key = TranslateKeySym(keysym);
             event->as.key.pressed = true;
