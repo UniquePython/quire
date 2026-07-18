@@ -521,9 +521,9 @@ void QuirePlatformDestroy(QuirePlatform **restrict platform)
         LOG_DEBUG("Destroyed image");
     }
 
-    if ((*platform)->gc != NULL)
+    if ((*platform)->display != NULL && (*platform)->gc != NULL)
     {
-        free((*platform)->gc);
+        XFreeGC((*platform)->display, (*platform)->gc);
         LOG_DEBUG("Destroyed graphics context");
     }
 
