@@ -23,13 +23,25 @@ typedef struct
 
 struct QuirePlatform
 {
+    // ============ X11 CONNECTION ============
     Display *display;
-    Window window;
     i32 screen;
+
+    // ============ WINDOW ============
+    Window window;
     Atom WMDelete;
     u32 width, height;
+    bool resized;
+
+    // ============ RENDERING ============
+    Visual *visual;
     QuirePixelFormat pixelFormat;
     XImage *image;
+    GC gc;
+    u8 depth;
+    u8 byteOrder;
+
+    // ============ INPUT ============
     QuireModifierMap modifierMap;
 };
 
@@ -391,15 +403,15 @@ static QUIRE_WARN_UNUSED_RESULT bool QueryPixelFormat(
     QuirePlatform *restrict platform,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
 {
-    Visual *visual = DefaultVisual(platform->display, platform->screen);
-    DeriveShiftAndBits(visual->red_mask, &platform->pixelFormat.redShift, &platform->pixelFormat.redBits);
-    DeriveShiftAndBits(visual->green_mask, &platform->pixelFormat.greenShift, &platform->pixelFormat.greenBits);
-    DeriveShiftAndBits(visual->blue_mask, &platform->pixelFormat.blueShift, &platform->pixelFormat.blueBits);
+    platform->visual = DefaultVisual(platform->display, platform->screen);
+    DeriveShiftAndBits(platform->visual->red_mask, &platform->pixelFormat.redShift, &platform->pixelFormat.redBits);
+    DeriveShiftAndBits(platform->visual->green_mask, &platform->pixelFormat.greenShift, &platform->pixelFormat.greenBits);
+    DeriveShiftAndBits(platform->visual->blue_mask, &platform->pixelFormat.blueShift, &platform->pixelFormat.blueBits);
     LOG_DEBUG(
         "Pixel masks: R=0x%08lX G=0x%08lX B=0x%08lX",
-        visual->red_mask,
-        visual->green_mask,
-        visual->blue_mask);
+        platform->visual->red_mask,
+        platform->visual->green_mask,
+        platform->visual->blue_mask);
 
     i32 formatCount = 0;
     XPixmapFormatValues *formats = XListPixmapFormats(platform->display, &formatCount);
@@ -409,13 +421,15 @@ static QUIRE_WARN_UNUSED_RESULT bool QueryPixelFormat(
         return false;
     }
 
-    i32 depth = DefaultDepth(platform->display, platform->screen);
+    platform->byteOrder = (u8)ImageByteOrder(platform->display);
+
+    platform->depth = (u8)DefaultDepth(platform->display, platform->screen);
     bool found = false;
     for (i32 i = 0; i < formatCount; ++i)
     {
-        if (formats[i].depth == depth)
+        if ((u8)formats[i].depth == platform->depth)
         {
-            platform->pixelFormat.bytesPerPixel = (u32)((formats[i].bits_per_pixel + 7) / 8);
+            platform->pixelFormat.bytesPerPixel = (u8)((formats[i].bits_per_pixel + 7) / 8);
             found = true;
             break;
         }
@@ -424,7 +438,7 @@ static QUIRE_WARN_UNUSED_RESULT bool QueryPixelFormat(
 
     if (!found)
     {
-        QuireSetError(errorBuffer, "No pixmap format found for depth %d", depth);
+        QuireSetError(errorBuffer, "No pixmap format found for depth %" PRIu8, platform->depth);
         return false;
     }
     LOG_DEBUG(
@@ -630,6 +644,7 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
             {
                 platform->height = (u32)xevent.xconfigure.height;
                 platform->width = (u32)xevent.xconfigure.width;
+                platform->resized = true;
 
                 event->type = QUIRE_EVENT_RESIZE;
                 event->as.resize.height = platform->height;
@@ -832,4 +847,64 @@ u32 QuirePlatformGetWidth(const QuirePlatform *platform)
 u32 QuirePlatformGetHeight(const QuirePlatform *platform)
 {
     return platform->height;
+}
+
+static QUIRE_CONST u8 BitmapPadForBytesPerPixel(u8 bytesPerPixel)
+{
+    if (bytesPerPixel <= 1)
+        return 8;
+    else if (bytesPerPixel <= 2)
+        return 16;
+    else
+        return 32;
+}
+
+static QUIRE_WARN_UNUSED_RESULT bool RecreateImage(
+    QuirePlatform *restrict platform,
+    const u8 *restrict pixels,
+    char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
+{
+    if (platform->image != NULL)
+    {
+        platform->image->data = NULL; // don't let XDestroyImage free the caller's buffer
+        XDestroyImage(platform->image);
+        platform->image = NULL;
+    }
+
+    platform->image = XCreateImage(
+        platform->display,
+        platform->visual,
+        (unsigned int)platform->depth,
+        ZPixmap,
+        0,
+        (char *)pixels,
+        (unsigned int)platform->width,
+        (unsigned int)platform->height,
+        (int)BitmapPadForBytesPerPixel(platform->pixelFormat.bytesPerPixel),
+        0 /* bytes_per_line: 0 = let Xlib compute it */);
+
+    if (platform->image == NULL)
+    {
+        QuireSetError(errorBuffer, "Failed to create XImage");
+        return false;
+    }
+
+    platform->resized = false;
+    return true;
+}
+
+QUIRE_WARN_UNUSED_RESULT bool QuirePlatformPresent(
+    QuirePlatform *restrict platform,
+    const u8 *restrict pixels,
+    char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
+{
+    if (platform->resized || platform->image == NULL)
+    {
+        QUIRE_ERROR_BUFFER(errbuf);
+        if (!RecreateImage(platform, pixels, errbuf))
+        {
+            QuireSetError(errorBuffer, "%s", errbuf);
+            return false;
+        }
+    }
 }
