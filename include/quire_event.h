@@ -116,25 +116,25 @@ typedef struct
         } text;
         struct
         {
-            i32 x, y;
+            i16 x, y;
             QuireMouseButton button;
             bool pressed;
             QuireModifier modifiers;
         } mouseButton;
         struct
         {
-            i32 x, y;
+            i16 x, y;
             QuireModifier modifiers;
         } mouseMove;
         struct
         {
-            i32 x, y;
+            i16 x, y;
             i32 deltaX, deltaY;
             QuireModifier modifiers;
         } scroll;
         struct
         {
-            u32 width, height;
+            u16 width, height;
         } resize;
     } as;
 } QuireEvent;

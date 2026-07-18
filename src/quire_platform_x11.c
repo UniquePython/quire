@@ -25,12 +25,12 @@ struct QuirePlatform
 {
     // ============ X11 CONNECTION ============
     Display *display;
-    i32 screen;
+    u8 screen;
 
     // ============ WINDOW ============
     Window window;
     Atom WMDelete;
-    u32 width, height;
+    u16 width, height;
     bool resized;
 
     // ============ RENDERING ============
@@ -314,7 +314,7 @@ static QUIRE_WARN_UNUSED_RESULT bool OpenDisplay(QuirePlatform *restrict platfor
 
     LOG_DEBUG("Opened X Display");
 
-    platform->screen = (i32)DefaultScreen(platform->display);
+    platform->screen = (u8)DefaultScreen(platform->display);
     LOG_DEBUG("Using default screen %" PRIi32, platform->screen);
 
     return true;
@@ -322,8 +322,8 @@ static QUIRE_WARN_UNUSED_RESULT bool OpenDisplay(QuirePlatform *restrict platfor
 
 static QUIRE_WARN_UNUSED_RESULT bool CreateWindow(
     QuirePlatform *restrict platform,
-    u32 width,
-    u32 height,
+    u16 width,
+    u16 height,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
 {
     Window rootWindow = RootWindow(platform->display, platform->screen);
@@ -345,7 +345,7 @@ static QUIRE_WARN_UNUSED_RESULT bool CreateWindow(
         QuireSetError(errorBuffer, "Failed to create Window");
         return false;
     }
-    LOG_DEBUG("Created window (%" PRIu32 "x%" PRIu32 ")", width, height);
+    LOG_DEBUG("Created window (%" PRIu16 "x%" PRIu16 ")", width, height);
 
     platform->width = width;
     platform->height = height;
@@ -468,8 +468,8 @@ static QUIRE_WARN_UNUSED_RESULT bool QueryPixelFormat(
 
 bool QuirePlatformCreate(
     QuirePlatform **restrict platform,
-    u32 width,
-    u32 height,
+    u16 width,
+    u16 height,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
 {
 
@@ -655,10 +655,10 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
             return QUIRE_PLATFORM_OK;
 
         case ConfigureNotify:
-            if (((u32)xevent.xconfigure.height != platform->height) || ((u32)xevent.xconfigure.width != platform->width))
+            if (((u16)xevent.xconfigure.height != platform->height) || ((u16)xevent.xconfigure.width != platform->width))
             {
-                platform->height = (u32)xevent.xconfigure.height;
-                platform->width = (u32)xevent.xconfigure.width;
+                platform->height = (u16)xevent.xconfigure.height;
+                platform->width = (u16)xevent.xconfigure.width;
                 platform->resized = true;
 
                 event->type = QUIRE_EVENT_RESIZE;
@@ -751,8 +751,8 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
 
                 event->type = QUIRE_EVENT_MOUSE_BUTTON;
 
-                event->as.mouseButton.x = (i32)xevent.xbutton.x;
-                event->as.mouseButton.y = (i32)xevent.xbutton.y;
+                event->as.mouseButton.x = (i16)xevent.xbutton.x;
+                event->as.mouseButton.y = (i16)xevent.xbutton.y;
                 event->as.mouseButton.button = mouseButton;
                 event->as.mouseButton.pressed = true;
                 event->as.mouseButton.modifiers = TranslateModifiers(platform, xevent.xbutton.state);
@@ -767,8 +767,8 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
 
                 event->type = QUIRE_EVENT_SCROLL;
 
-                event->as.scroll.x = (i32)xevent.xbutton.x;
-                event->as.scroll.y = (i32)xevent.xbutton.y;
+                event->as.scroll.x = (i16)xevent.xbutton.x;
+                event->as.scroll.y = (i16)xevent.xbutton.y;
                 event->as.scroll.deltaX = deltaX;
                 event->as.scroll.deltaY = deltaY;
                 event->as.scroll.modifiers = TranslateModifiers(platform, xevent.xbutton.state);
@@ -797,8 +797,8 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
 
                 event->type = QUIRE_EVENT_MOUSE_BUTTON;
 
-                event->as.mouseButton.x = (i32)xevent.xbutton.x;
-                event->as.mouseButton.y = (i32)xevent.xbutton.y;
+                event->as.mouseButton.x = (i16)xevent.xbutton.x;
+                event->as.mouseButton.y = (i16)xevent.xbutton.y;
                 event->as.mouseButton.button = mouseButton;
                 event->as.mouseButton.pressed = false;
                 event->as.mouseButton.modifiers = TranslateModifiers(platform, xevent.xbutton.state);
@@ -835,8 +835,8 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
 
             event->type = QUIRE_EVENT_MOUSE_MOVE;
 
-            event->as.mouseMove.x = (i32)motion.xmotion.x;
-            event->as.mouseMove.y = (i32)motion.xmotion.y;
+            event->as.mouseMove.x = (i16)motion.xmotion.x;
+            event->as.mouseMove.y = (i16)motion.xmotion.y;
             event->as.mouseMove.modifiers = TranslateModifiers(platform, motion.xmotion.state);
 
             return QUIRE_PLATFORM_OK;
@@ -854,12 +854,12 @@ QuirePixelFormat QuirePlatformGetPixelFormat(const QuirePlatform *platform)
     return platform->pixelFormat;
 }
 
-u32 QuirePlatformGetWidth(const QuirePlatform *platform)
+u16 QuirePlatformGetWidth(const QuirePlatform *platform)
 {
     return platform->width;
 }
 
-u32 QuirePlatformGetHeight(const QuirePlatform *platform)
+u16 QuirePlatformGetHeight(const QuirePlatform *platform)
 {
     return platform->height;
 }

@@ -13,7 +13,7 @@ typedef struct QuirePlatform QuirePlatform;
 
 QUIRE_WARN_UNUSED_RESULT bool QuirePlatformCreate(
     QuirePlatform **restrict platform,
-    u32 width, u32 height,
+    u16 width, u16 height,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE]);
 
 void QuirePlatformDestroy(QuirePlatform **restrict platform);
@@ -54,9 +54,9 @@ QUIRE_CONST const char *QuireKeyName(QuireKey key);
 
 QUIRE_PURE QuirePixelFormat QuirePlatformGetPixelFormat(const QuirePlatform *platform);
 
-QUIRE_PURE u32 QuirePlatformGetWidth(const QuirePlatform *platform);
+QUIRE_PURE u16 QuirePlatformGetWidth(const QuirePlatform *platform);
 
-QUIRE_PURE u32 QuirePlatformGetHeight(const QuirePlatform *platform);
+QUIRE_PURE u16 QuirePlatformGetHeight(const QuirePlatform *platform);
 
 QUIRE_WARN_UNUSED_RESULT bool QuirePlatformPresent(
     QuirePlatform *restrict platform,
