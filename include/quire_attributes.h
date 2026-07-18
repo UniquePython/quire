@@ -33,12 +33,29 @@
 // error.
 #define QUIRE_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 
+// Casts away const on `ptr`, narrowly and deliberately, for the rare cases
+// where an external API is not const-correct (e.g. Xlib's XImage.data is
+// declared as plain char*, even though XPutImage only ever reads through it)
+// but is known, by inspection, not to write through the pointer. Scoped to
+// exactly this one expression via a GNU statement-expression, so -Wcast-qual
+// stays fully active for every other cast in the codebase; only intentional,
+// reviewed uses of this macro are exempted.
+#define QUIRE_DISCARD_CONST(ptr)                                                                                                    \
+    (__extension__({                                                                                                                \
+        __typeof__(ptr) QUIRE_DISCARD_CONST_tmp_ = (ptr);                                                                           \
+        _Pragma("GCC diagnostic push")                                                                                              \
+            _Pragma("GCC diagnostic ignored \"-Wcast-qual\"") void *QUIRE_DISCARD_CONST_result_ = (void *)QUIRE_DISCARD_CONST_tmp_; \
+        _Pragma("GCC diagnostic pop")                                                                                               \
+            QUIRE_DISCARD_CONST_result_;                                                                                            \
+    }))
+
 #else
 
 #define QUIRE_PRINTF(fmtIndex, argIndex)
 #define QUIRE_CONST
 #define QUIRE_PURE
 #define QUIRE_WARN_UNUSED_RESULT
+#define QUIRE_DISCARD_CONST(ptr) ((void *)(ptr))
 
 #endif
 

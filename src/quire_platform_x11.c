@@ -892,7 +892,7 @@ static QUIRE_WARN_UNUSED_RESULT bool RecreateImage(
         (unsigned int)platform->depth,
         ZPixmap,
         0,
-        (char *)pixels,
+        QUIRE_DISCARD_CONST(pixels),
         (unsigned int)platform->width,
         (unsigned int)platform->height,
         (int)BitmapPadForBytesPerPixel(platform->pixelFormat.bytesPerPixel),
@@ -915,15 +915,11 @@ QUIRE_WARN_UNUSED_RESULT bool QuirePlatformPresent(
 {
     if (platform->resized || platform->image == NULL)
     {
-        QUIRE_ERROR_BUFFER(errbuf);
-        if (!RecreateImage(platform, pixels, errbuf))
-        {
-            QuireSetError(errorBuffer, "%s", errbuf);
+        if (!RecreateImage(platform, pixels, errorBuffer))
             return false;
-        }
     }
 
-    platform->image->data = (char *)pixels;
+    platform->image->data = QUIRE_DISCARD_CONST(pixels);
 
     XPutImage(platform->display, platform->window, platform->gc, platform->image, 0, 0, 0, 0, platform->width, platform->height);
 
