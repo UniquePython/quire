@@ -558,7 +558,7 @@ typedef enum
     QUIRE_X11_BUTTON_SCROLL,
 } QuireX11ButtonKind;
 
-static QUIRE_CONST QuireX11ButtonKind ClassifyXButton(u32 xButton)
+static QUIRE_CONST QuireX11ButtonKind ClassifyXButton(u8 xButton)
 {
     if (1 <= xButton && xButton <= 3)
         return QUIRE_X11_BUTTON_REAL;
@@ -569,7 +569,7 @@ static QUIRE_CONST QuireX11ButtonKind ClassifyXButton(u32 xButton)
 }
 
 // Assumes xButton is already known to be a real button (1-3).
-static QUIRE_CONST QuireMouseButton TranslateMouseButton(u32 xButton)
+static QUIRE_CONST QuireMouseButton TranslateMouseButton(u8 xButton)
 {
     switch (xButton)
     {
@@ -589,7 +589,7 @@ static QUIRE_CONST QuireMouseButton TranslateMouseButton(u32 xButton)
 
 // Assumes xButton is already known to be a scroll button (4-7). Fills in
 // the signed delta for whichever axis this wheel button represents.
-static void ScrollDeltaForButton(u32 xButton, i32 *restrict deltaX, i32 *restrict deltaY)
+static void ScrollDeltaForButton(u8 xButton, i32 *restrict deltaX, i32 *restrict deltaY)
 {
     *deltaX = 0;
     *deltaY = 0;
@@ -740,7 +740,7 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
 
         case ButtonPress:
         {
-            u32 xButton = (u32)xevent.xbutton.button;
+            u8 xButton = (u8)xevent.xbutton.button;
             QuireX11ButtonKind xButtonKind = ClassifyXButton(xButton);
 
             switch (xButtonKind)
@@ -786,7 +786,7 @@ QuirePlatformResult QuirePlatformPollEvent(QuirePlatform *restrict platform, Qui
 
         case ButtonRelease:
         {
-            u32 xButton = (u32)xevent.xbutton.button;
+            u8 xButton = (u8)xevent.xbutton.button;
             QuireX11ButtonKind xButtonKind = ClassifyXButton(xButton);
 
             switch (xButtonKind)
