@@ -357,6 +357,8 @@ static QUIRE_WARN_UNUSED_RESULT bool SetupWindow(
     QuirePlatform *restrict platform,
     char errorBuffer[restrict QUIRE_ERROR_BUFFER_SIZE])
 {
+    platform->gc = XCreateGC(platform->display, platform->window, 0, NULL);
+
     static const long EVENT_TYPES = KeyPressMask | ExposureMask | StructureNotifyMask |
                                     ButtonPressMask | ButtonReleaseMask | PointerMotionMask;
 
@@ -511,6 +513,19 @@ void QuirePlatformDestroy(QuirePlatform **restrict platform)
 {
     if (platform == NULL || *platform == NULL)
         return;
+
+    if ((*platform)->image != NULL)
+    {
+        (*platform)->image->data = NULL;
+        XDestroyImage((*platform)->image);
+        LOG_DEBUG("Destroyed image");
+    }
+
+    if ((*platform)->gc != NULL)
+    {
+        free((*platform)->gc);
+        LOG_DEBUG("Destroyed graphics context");
+    }
 
     if ((*platform)->window != 0)
     {
@@ -907,4 +922,10 @@ QUIRE_WARN_UNUSED_RESULT bool QuirePlatformPresent(
             return false;
         }
     }
+
+    platform->image->data = (char *)pixels;
+
+    XPutImage(platform->display, platform->window, platform->gc, platform->image, 0, 0, 0, 0, platform->width, platform->height);
+
+    return true;
 }
